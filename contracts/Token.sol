@@ -70,6 +70,7 @@ contract Token {
     function balanceOf(address account) external view returns (uint256) {
         return balances[account];
     }
+<<<<<<< HEAD
 
     function split(address[] memory accounts, uint256 amount) external{
         uint256 avg = amount / (accounts.length+1);
@@ -82,4 +83,6 @@ contract Token {
 
         balances[msg.sender] += avg * accounts.length;
     }
+=======
+>>>>>>> 339889eaafa45a0369c3a1a00116c09554d3640a
 }
