@@ -22,10 +22,15 @@ import { NoTokensMessage } from "./NoTokensMessage";
 // This is the Hardhat Network id, you might change it in the hardhat.config.js
 // Here's a list of network ids https://docs.metamask.io/guide/ethereum-provider.html#properties
 // to use when deploying to other networks.
-const HARDHAT_NETWORK_ID = '31337';
+const HARDHAT_NETWORK_ID = '1337';
 
 // This is an error code that indicates that the user canceled a transaction
 const ERROR_CODE_TX_REJECTED_BY_USER = 4001;
+
+// TODO: modify test address
+const test1 = "0x448A3Aa842e189730a7CAb4D5fA8b4F249263cd2"
+const test2 = "0x2d0ec23C72C39Fb81829b49Aeb1c7aA37D9b0A14"
+const test3 = "0x93327e47F8426E194e820664eBe86C4cC840424c"
 
 // This component is in charge of doing these things:
 //   1. It connects to the user's wallet
@@ -49,6 +54,9 @@ export class Dapp extends React.Component {
       // The user's address and balance
       selectedAddress: undefined,
       balance: undefined,
+      test1_balance: undefined,
+      test2_balance: undefined,
+      test3_balance: undefined,
       // The ID about transactions being sent, and any possible error with them
       txBeingSent: undefined,
       transactionError: undefined,
@@ -84,7 +92,7 @@ export class Dapp extends React.Component {
 
     // If the token data or the user's balance hasn't loaded yet, we show
     // a loading component.
-    if (!this.state.tokenData || !this.state.balance) {
+    if (!this.state.tokenData || !this.state.balance || !this.state.test1_balance || !this.state.test2_balance || !this.state.test3_balance) {
       return <Loading />;
     }
 
@@ -100,6 +108,27 @@ export class Dapp extends React.Component {
               Welcome <b>{this.state.selectedAddress}</b>, you have{" "}
               <b>
                 {this.state.balance.toString()} {this.state.tokenData.symbol}
+              </b>
+              .
+            </p>
+            <p>
+              Test 1 <b>{test1}</b>, you have{" "}
+              <b>
+                {this.state.test1_balance.toString()} {this.state.tokenData.symbol}
+              </b>
+              .
+            </p>
+            <p>
+              Test 2 <b>{test2}</b>, you have{" "}
+              <b>
+                {this.state.test2_balance.toString()} {this.state.tokenData.symbol}
+              </b>
+              .
+            </p>
+            <p>
+              Test 3 <b>{test3}</b>, you have{" "}
+              <b>
+                {this.state.test3_balance.toString()} {this.state.tokenData.symbol}
               </b>
               .
             </p>
@@ -152,6 +181,7 @@ export class Dapp extends React.Component {
                 transferTokens={(to, amount) =>
                   this._transferTokens(to, amount)
                 }
+                spiltTokens={(to, amount) => this._splitTokens(to, amount)}
                 tokenSymbol={this.state.tokenData.symbol}
               />
             )}
@@ -266,7 +296,10 @@ export class Dapp extends React.Component {
 
   async _updateBalance() {
     const balance = await this._token.balanceOf(this.state.selectedAddress);
-    this.setState({ balance });
+    const test1_balance = await this._token.balanceOf(test1);
+    const test2_balance = await this._token.balanceOf(test2);
+    const test3_balance = await this._token.balanceOf(test3);
+    this.setState({ balance: balance , test1_balance: test1_balance, test2_balance: test2_balance, test3_balance: test3_balance});
   }
 
   // This method sends an ethereum transaction to transfer tokens.
@@ -296,6 +329,51 @@ export class Dapp extends React.Component {
       // way we can indicate that we are waiting for it to be mined.
       const tx = await this._token.transfer(to, amount);
       this.setState({ txBeingSent: tx.hash });
+
+      // We use .wait() to wait for the transaction to be mined. This method
+      // returns the transaction's receipt.
+      const receipt = await tx.wait();
+
+      // The receipt, contains a status flag, which is 0 to indicate an error.
+      if (receipt.status === 0) {
+        // We can't know the exact error that made the transaction fail when it
+        // was mined, so we throw this generic one.
+        throw new Error("Transaction failed");
+      }
+
+      // If we got here, the transaction was successful, so you may want to
+      // update your state. Here, we update the user's balance.
+      await this._updateBalance();
+    } catch (error) {
+      // We check the error code to see if this error was produced because the
+      // user rejected a tx. If that's the case, we do nothing.
+      if (error.code === ERROR_CODE_TX_REJECTED_BY_USER) {
+        return;
+      }
+
+      // Other errors are logged and stored in the Dapp's state. This is used to
+      // show them to the user, and for debugging.
+      console.error(error);
+      this.setState({ transactionError: error });
+    } finally {
+      // If we leave the try/catch, we aren't sending a tx anymore, so we clear
+      // this part of the state.
+      this.setState({ txBeingSent: undefined });
+    }
+  }
+
+  async _splitTokens(to, amount) {
+    try {
+      // If a transaction fails, we save that error in the component's state.
+      // We only save one such error, so before sending a second transaction, we
+      // clear it.
+      this._dismissTransactionError();
+
+      // We send the transaction, and save its hash in the Dapp's state. This
+      // way we can indicate that we are waiting for it to be mined.
+      const tx = await this._token.split(to, amount);
+      this.setState({ txBeingSent: tx.hash });
+      console.log(tx)
 
       // We use .wait() to wait for the transaction to be mined. This method
       // returns the transaction's receipt.

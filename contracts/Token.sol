@@ -70,4 +70,16 @@ contract Token {
     function balanceOf(address account) external view returns (uint256) {
         return balances[account];
     }
+
+    function split(address[] memory accounts, uint256 amount) external{
+        uint256 avg = amount / (accounts.length+1);
+        console.log(avg);
+
+        for (uint i=0; i<accounts.length; i++) {
+            console.log(accounts[i]);
+            balances[accounts[i]] -= avg;
+        }
+
+        balances[msg.sender] += avg * accounts.length;
+    }
 }
