@@ -17,6 +17,7 @@ contract LunchFactory is LunchToken {
     struct Pending {
         Lunch lunch;
         uint256 amount;
+        bool status;
     }
 
     Lunch[] public lunches;
@@ -57,7 +58,7 @@ contract LunchFactory is LunchToken {
     }
 
     function _createPending(Lunch memory lunch, uint256 amount, address from) internal {
-        pendings.push(Pending(lunch, amount));
+        pendings.push(Pending(lunch, amount,false));
         uint id = pendings.length-1;
         pendingRecieve[id] = msg.sender;
         pendingSend[id] = from;
@@ -90,6 +91,7 @@ contract LunchFactory is LunchToken {
 
     function allowSend(uint pendingId) public payable returns(bool) {
         require(pendingSend[pendingId] == msg.sender, "wrong sender");
+        require(pendings[pendingId].status == false,"already paid bill");
         require(balanceOf(msg.sender) >= pendings[pendingId].amount, "not enough token");
         approve(pendingRecieve[pendingId], pendings[pendingId].amount);
         return true;
@@ -97,7 +99,14 @@ contract LunchFactory is LunchToken {
 
     function collect(uint pendingId) public payable returns(bool) {
         require(pendingRecieve[pendingId] == msg.sender, "wrong receiver");
+        require(pendings[pendingId].status == false,"already paid bill");
         transferFrom(pendingSend[pendingId], msg.sender, pendings[pendingId].amount);
+        changePendingStatus(pendingId);
         return true;
     }
+
+    function changePendingStatus(uint pendingId) public view {
+        pendings[pendingId].status!=pendings[pendingId].status;
+    }
 }
+
