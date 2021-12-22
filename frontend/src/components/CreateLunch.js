@@ -1,9 +1,9 @@
 import React from "react";
 
-export function Transfer({ transferTokens, tokenSymbol }) {
+export function CreateLunch({ createLunchEvent, tokenSymbol }) {
   return (
     <div>
-      <h4>Transfer</h4>
+      <h4>CreateLunch</h4>
       <form
         onSubmit={(event) => {
           // This function just calls the transferTokens callback with the
@@ -12,10 +12,12 @@ export function Transfer({ transferTokens, tokenSymbol }) {
 
           const formData = new FormData(event.target);
           const to = formData.get("to");
+          const date = formData.get("date");
           const amount = formData.get("amount");
 
-          if (to && amount) {
-            transferTokens(to, amount);
+          if (to && date && amount) {
+            let to_account = to.split(', ')
+            createLunchEvent(to_account, date, amount);
           }
         }}
       >
@@ -31,11 +33,15 @@ export function Transfer({ transferTokens, tokenSymbol }) {
           />
         </div>
         <div className="form-group">
-          <label>Recipient address</label>
+          <label>Date</label>
+          <input className="form-control" type="text" name="date" required />
+        </div>
+        <div className="form-group">
+          <label>People who takes the lunch with you, split using ", "</label>
           <input className="form-control" type="text" name="to" required />
         </div>
         <div className="form-group">
-          <input className="btn btn-primary" type="submit" value="Transfer" />
+          <input className="btn btn-primary" type="submit" value="Create" />
         </div>
       </form>
     </div>

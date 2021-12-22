@@ -18,6 +18,8 @@ import { Transfer } from "./Transfer";
 import { TransactionErrorMessage } from "./TransactionErrorMessage";
 import { WaitingForTransactionMessage } from "./WaitingForTransactionMessage";
 import { NoTokensMessage } from "./NoTokensMessage";
+import { Pendings } from "./Pendings"
+import { CreateLunch } from "./CreateLunch";
 
 // This is the Hardhat Network id, you might change it in the hardhat.config.js
 // Here's a list of network ids https://docs.metamask.io/guide/ethereum-provider.html#properties
@@ -61,6 +63,9 @@ export class Dapp extends React.Component {
       txBeingSent: undefined,
       transactionError: undefined,
       networkError: undefined,
+      // pending tansactions
+      pendingReceive: [],
+      pendingSend: []
     };
 
     this.state = this.initialState;
@@ -177,13 +182,24 @@ export class Dapp extends React.Component {
               callback.
             */}
             {this.state.balance.gt(0) && (
-              <Transfer
-                transferTokens={(to, amount) =>
-                  this._transferTokens(to, amount)
-                }
-                spiltTokens={(to, amount) => this._splitTokens(to, amount)}
-                tokenSymbol={this.state.tokenData.symbol}
-              />
+              <div>
+                <Transfer
+                  transferTokens={(to, amount) =>
+                    this._transferTokens(to, amount)
+                  }
+                  tokenSymbol={this.state.tokenData.symbol}
+                />
+
+                <Pendings 
+                  pendingReceive={this.state.pendingReceive}
+                  pendingSend={this.state.pendingSend}
+                />
+
+                <CreateLunch
+                  createLunchEvent={(to, date, amount) => this._createLunchEvent(to, date, amount)}
+                  tokenSymbol={this.state.tokenData.symbol}
+                />
+              </div>
             )}
           </div>
         </div>
@@ -278,6 +294,7 @@ export class Dapp extends React.Component {
 
     // We run it once immediately so we don't have to wait for it
     this._updateBalance();
+    this._updatePendings();
   }
 
   _stopPollingData() {
@@ -301,6 +318,13 @@ export class Dapp extends React.Component {
     const test3_balance = await this._token.balanceOf(test3);
     this.setState({ balance: balance , test1_balance: test1_balance, test2_balance: test2_balance, test3_balance: test3_balance});
   }
+
+  async _updatePendings() {
+    const pendingReceive = await this._token.getPendingReceiveByOwner(this.state.selectedAddress);
+    const pendingSend = await this._token.getPendingSendByOwner(this.state.selectedAddress);
+    this.setState({ pendingReceive: pendingReceive , pendingSend: pendingSend});
+  }
+
 
   // This method sends an ethereum transaction to transfer tokens.
   // While this action is specific to this application, it illustrates how to
@@ -344,6 +368,7 @@ export class Dapp extends React.Component {
       // If we got here, the transaction was successful, so you may want to
       // update your state. Here, we update the user's balance.
       await this._updateBalance();
+      await this._updatePendings();
     } catch (error) {
       // We check the error code to see if this error was produced because the
       // user rejected a tx. If that's the case, we do nothing.
@@ -362,7 +387,8 @@ export class Dapp extends React.Component {
     }
   }
 
-  async _splitTokens(to, amount) {
+  async _createLunchEvent(to, date, amount) {
+
     try {
       // If a transaction fails, we save that error in the component's state.
       // We only save one such error, so before sending a second transaction, we
@@ -371,9 +397,8 @@ export class Dapp extends React.Component {
 
       // We send the transaction, and save its hash in the Dapp's state. This
       // way we can indicate that we are waiting for it to be mined.
-      const tx = await this._token.split(to, amount);
+      const tx = await this._token.createLunchEvent(amount, date, to);
       this.setState({ txBeingSent: tx.hash });
-      console.log(tx)
 
       // We use .wait() to wait for the transaction to be mined. This method
       // returns the transaction's receipt.
@@ -389,6 +414,7 @@ export class Dapp extends React.Component {
       // If we got here, the transaction was successful, so you may want to
       // update your state. Here, we update the user's balance.
       await this._updateBalance();
+      await this._updatePendings();
     } catch (error) {
       // We check the error code to see if this error was produced because the
       // user rejected a tx. If that's the case, we do nothing.
