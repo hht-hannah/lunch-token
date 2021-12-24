@@ -30,7 +30,7 @@ task("faucet", "Sends ETH and tokens to an address")
       return;
     }
 
-    const token = await ethers.getContractAt("LunchFactory", address.Token);
+    const token = await ethers.getContractAt("SocialNetwork", address.Token);
     const [sender] = await ethers.getSigners();
 
     const tx = await token.transfer(receiver, 100);

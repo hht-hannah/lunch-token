@@ -20,6 +20,10 @@ import { WaitingForTransactionMessage } from "./WaitingForTransactionMessage";
 import { NoTokensMessage } from "./NoTokensMessage";
 import { Pendings } from "./Pendings"
 import { CreateLunch } from "./CreateLunch";
+import { ShowFriends} from "./ShowFriends";
+import {CreateLunchSplitWithFriends} from "./CreateLunchSplitWithFriends";
+import {AddFriend} from "./AddFriend";
+import {DeleteFriend} from "./DeleteFriend";
 
 // This is the Hardhat Network id, you might change it in the hardhat.config.js
 // Here's a list of network ids https://docs.metamask.io/guide/ethereum-provider.html#properties
@@ -65,7 +69,9 @@ export class Dapp extends React.Component {
       networkError: undefined,
       // pending tansactions
       pendingReceive: [],
-      pendingSend: []
+      pendingSend: [],
+      // friends List
+      friendsList: []
     };
 
     this.state = this.initialState;
@@ -199,6 +205,26 @@ export class Dapp extends React.Component {
                   createLunchEvent={(to, date, amount) => this._createLunchEvent(to, date, amount)}
                   tokenSymbol={this.state.tokenData.symbol}
                 />
+
+                <AddFriend
+                   addFriend={(personalAddress,to,name) => this._addFriend(personalAddress,to,name)}
+                   personalAddress={this.state.selectedAddress}
+                />
+
+                <DeleteFriend
+                    deleteFriend={(personalAddress,to) => this._deleteFriend(personalAddress,to)}
+                    personalAddress={this.state.selectedAddress}
+                />
+
+                <ShowFriends
+                    friendsList={this.state.friendsList}
+                />
+
+                <CreateLunchSplitWithFriends
+                    createLunchEvent={(to, date, amount) => this._createLunchEvent(to, date, amount)}
+                    tokenSymbol={this.state.tokenData.symbol}
+                />
+
               </div>
             )}
           </div>
@@ -266,6 +292,7 @@ export class Dapp extends React.Component {
     // sample project, but you can reuse the same initialization pattern.
     this._intializeEthers();
     this._getTokenData();
+    this._getFriendsData();
     this._startPollingData();
   }
 
@@ -295,6 +322,7 @@ export class Dapp extends React.Component {
     // We run it once immediately so we don't have to wait for it
     this._updateBalance();
     this._updatePendings();
+    this._getFriendsData();
   }
 
   _stopPollingData() {
@@ -307,8 +335,22 @@ export class Dapp extends React.Component {
   async _getTokenData() {
     const name = await this._token.name();
     const symbol = await this._token.symbol();
-
     this.setState({ tokenData: { name, symbol } });
+  }
+
+  async _getFriendsData() {
+    const friendsList = await this._token.getFriends(this.state.selectedAddress);
+    console.log("Updated"+friendsList)
+    var friendsContainer=[];
+    for(let i=0;i<friendsList.length;i++){
+      var friend={};
+      friend['name']=friendsList[i][0];
+      friend['accountBalance']=friendsList[i][1];
+      friend['personalAddress']=friendsList[i][2];
+      friendsContainer.push(friend);
+    }
+    console.log(friendsContainer)
+    this.setState({ friendsList: friendsContainer});
   }
 
   async _updateBalance() {
@@ -369,6 +411,7 @@ export class Dapp extends React.Component {
       // update your state. Here, we update the user's balance.
       await this._updateBalance();
       await this._updatePendings();
+      await this._getFriendsData();
     } catch (error) {
       // We check the error code to see if this error was produced because the
       // user rejected a tx. If that's the case, we do nothing.
@@ -432,6 +475,106 @@ export class Dapp extends React.Component {
       this.setState({ txBeingSent: undefined });
     }
   }
+  async _addFriend(personalAddress,to,name) {
+
+    try {
+      // If a transaction fails, we save that error in the component's state.
+      // We only save one such error, so before sending a second transaction, we
+      // clear it.
+      this._dismissTransactionError();
+
+      // We send the transaction, and save its hash in the Dapp's state. This
+      // way we can indicate that we are waiting for it to be mined.
+      const tx = await this._token.addFriend(personalAddress,to,name);
+      this.setState({ txBeingSent: tx.hash });
+
+      // We use .wait() to wait for the transaction to be mined. This method
+      // returns the transaction's receipt.
+      const receipt = await tx.wait();
+
+      // The receipt, contains a status flag, which is 0 to indicate an error.
+      if (receipt.status === 0) {
+        // We can't know the exact error that made the transaction fail when it
+        // was mined, so we throw this generic one.
+        throw new Error("Transaction failed");
+      }
+
+
+      // If we got here, the transaction was successful, so you may want to
+      // update your state. Here, we update the user's balance.
+      await this._updateBalance();
+      await this._updatePendings();
+      await this._getFriendsData();
+    } catch (error) {
+      // We check the error code to see if this error was produced because the
+      // user rejected a tx. If that's the case, we do nothing.
+      if (error.code === ERROR_CODE_TX_REJECTED_BY_USER) {
+        return;
+      }
+
+      // Other errors are logged and stored in the Dapp's state. This is used to
+      // show them to the user, and for debugging.
+      console.error(error);
+      this.setState({ transactionError: error });
+    } finally {
+      // If we leave the try/catch, we aren't sending a tx anymore, so we clear
+      // this part of the state.
+      this.setState({ txBeingSent: undefined });
+    }
+  }
+
+  async _deleteFriend(personalAddress, to) {
+    try {
+      // If a transaction fails, we save that error in the component's state.
+      // We only save one such error, so before sending a second transaction, we
+      // clear it.
+      this._dismissTransactionError();
+
+      // We send the transaction, and save its hash in the Dapp's state. This
+      // way we can indicate that we are waiting for it to be mined.
+      const tx = await this._token.deleteFriend(personalAddress,to);
+      this.setState({ txBeingSent: tx.hash });
+
+      // We use .wait() to wait for the transaction to be mined. This method
+      // returns the transaction's receipt.
+      const receipt = await tx.wait();
+
+      // The receipt, contains a status flag, which is 0 to indicate an error.
+      if (receipt.status === 0) {
+        // We can't know the exact error that made the transaction fail when it
+        // was mined, so we throw this generic one.
+        throw new Error("Transaction failed");
+      }
+
+
+      // If we got here, the transaction was successful, so you may want to
+      // update your state. Here, we update the user's balance.
+      await this._updateBalance();
+      await this._updatePendings();
+      await this._getFriendsData();
+    } catch (error) {
+      // We check the error code to see if this error was produced because the
+      // user rejected a tx. If that's the case, we do nothing.
+      if (error.code === ERROR_CODE_TX_REJECTED_BY_USER) {
+        return;
+      }
+
+      // Other errors are logged and stored in the Dapp's state. This is used to
+      // show them to the user, and for debugging.
+      console.error(error);
+      this.setState({ transactionError: error });
+    } finally {
+      // If we leave the try/catch, we aren't sending a tx anymore, so we clear
+      // this part of the state.
+      this.setState({ txBeingSent: undefined });
+    }
+
+  }
+
+
+
+
+
 
   // This method just clears part of the state.
   _dismissTransactionError() {
@@ -470,4 +613,5 @@ export class Dapp extends React.Component {
 
     return false;
   }
+
 }

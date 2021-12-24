@@ -45,6 +45,7 @@ contract LunchFactory is LunchToken {
         emit NewLunch(id);
     }
 
+
     function getLunchByOwner(address _owner) external view returns(uint[] memory) {
         uint[] memory result = new uint[](ownerLunchCount[_owner]);
         uint counter = 0;

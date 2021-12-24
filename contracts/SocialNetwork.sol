@@ -19,15 +19,24 @@ contract SocialNetwork is LunchFactory {
         friendsMap[_owner].push(Person(name,balanceOf(_friend),_friend));
     }
 
+    function getFriends(address _owner) public view returns(Person[] memory){
+        return friendsMap[_owner];
+    }
+
     function deleteFriend(address _owner,address _friend) public{
         require(_owner!=_friend,"wrong friend address");
-
-        for(uint i=0;i<friendsMap[_owner].length;i++){
+        uint size = friendsMap[_owner].length;
+        for(uint i=0;i<size;i++){
             if(friendsMap[_owner][i].personalAddress==_friend){
-                delete friendsMap[_owner][i];
+                for(uint j = i; j < size -1; j++){
+                    friendsMap[_owner][j] = friendsMap[_owner][j+1];
+                }
+                delete friendsMap[_owner][size - 1];
+                size--;
             }
         }
     }
+
 
     function createLunchEventAmongAllFriends(uint256 totalAmount, string memory date,address _owner) public{
         address[] memory accounts = new address[](friendsMap[_owner].length);
