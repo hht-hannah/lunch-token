@@ -80,6 +80,7 @@ contract LunchFactory is LunchToken {
 
     function allowSend(uint pendingId) public payable returns(bool) {
         require(pendingSend[pendingId] == msg.sender, "wrong sender");
+        require(pendings[pendingId].status == false,"already paid bill");
         require(balanceOf(msg.sender) >= pendings[pendingId].amount, "not enough token");
         approve(pendingReceive[pendingId], pendings[pendingId].amount);
         changePendingAllowed(pendingId);
@@ -104,3 +105,4 @@ contract LunchFactory is LunchToken {
         pendings[pendingId].status = !pendings[pendingId].status;
     }
 }
+
