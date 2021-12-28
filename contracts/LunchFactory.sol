@@ -5,83 +5,73 @@ pragma solidity ^0.8.0;
 import "./LunchToken.sol";
 
 contract LunchFactory is LunchToken {
-    event NewLunch(uint lunchId);
-    event NewPending(uint pendingId);
-
-
     struct Lunch {
-      uint256 totalAmount;
+      uint totalAmount;
       string date;
     }
 
     struct Pending {
-        Lunch lunch;
-        uint256 amount;
+        uint amount;
+        bool allowed;
+        bool status;
     }
 
-    Lunch[] public lunches;
-    Pending[] public pendings;
+    struct PendingReturn {
+        uint id;
+        address account;
+        uint amount;
+    }
 
-    mapping (uint => address) public lunchToOwner;
-    mapping (address => uint) public ownerLunchCount;
+    mapping (address => Lunch[]) public LunchMap;
+
+    Pending[] public pendings;
 
     mapping (uint => address) public pendingSend;
     mapping (address => uint) public ownerPendingSendCount;
 
-    mapping (uint => address) public pendingRecieve;
+    mapping (uint => address) public pendingReceive;
     mapping (address => uint) public ownerPendingReceiveCount;
 
-    function createLunchEvent(uint256 totalAmount, string memory date, address[] memory accounts) public {
-        lunches.push(Lunch(totalAmount, date));
-        uint id = lunches.length-1;
-        lunchToOwner[id] = msg.sender;
-        ownerLunchCount[msg.sender]++;
-
-        uint256 amount = totalAmount/(accounts.length+1);
+    function createLunchEvent(uint totalAmount, string memory date, address[] memory accounts) public {
+        LunchMap[msg.sender].push(Lunch(totalAmount, date));
+        uint amount = totalAmount/(accounts.length+1);
         for (uint i=0; i<accounts.length; i++) {
-            _createPending(lunches[id], amount, accounts[i]);
+            _createPending(amount, accounts[i]);
         }
-        emit NewLunch(id);
     }
 
-    function getLunchByOwner(address _owner) external view returns(uint[] memory) {
-        uint[] memory result = new uint[](ownerLunchCount[_owner]);
-        uint counter = 0;
-        for (uint i = 0; i < lunches.length; i++) {
-            if (lunchToOwner[i] == _owner) {
-                result[counter] = i;
-                counter++;
-            }
-        }
-        return result;
+
+    function getLunchByOwner(address _owner) public view returns(Lunch[] memory) {
+        return LunchMap[_owner];
     }
 
-    function _createPending(Lunch memory lunch, uint256 amount, address from) internal {
-        pendings.push(Pending(lunch, amount));
+    function _createPending(uint amount, address from) internal {
+        pendings.push(Pending(amount, false, false));
         uint id = pendings.length-1;
-        pendingRecieve[id] = msg.sender;
+        pendingReceive[id] = msg.sender;
         pendingSend[id] = from;
-        emit NewPending(id);
+        ownerPendingReceiveCount[msg.sender] += 1;
+        ownerPendingSendCount[from] += 1;
     }
 
-    function getPendingSendByOwner(address _owner) public view returns(uint[] memory) {
-        uint[] memory result = new uint[](ownerPendingSendCount[_owner]);
+    function getPendingSendByOwner(address _owner) public view returns(PendingReturn[] memory) {
+        PendingReturn[] memory result = new PendingReturn[](ownerPendingSendCount[_owner]);
         uint counter = 0;
         for (uint i = 0; i < pendings.length; i++) {
-            if (pendingSend[i] == _owner) {
-                result[counter] = i;
+            if (pendingSend[i] == _owner && pendings[i].allowed == false) {
+                result[counter] = PendingReturn(i, pendingReceive[i], pendings[i].amount);
                 counter++;
             }
         }
         return result;
     }
 
-    function getPendingReceiveByOwner(address _owner) public view returns(uint[] memory) {
-        uint[] memory result = new uint[](ownerPendingReceiveCount[_owner]);
+    function getPendingReceiveByOwner(address _owner) public view returns(PendingReturn[] memory) {
+        PendingReturn[] memory result = new PendingReturn[](ownerPendingReceiveCount[_owner]);
         uint counter = 0;
         for (uint i = 0; i < pendings.length; i++) {
-            if (pendingRecieve[i] == _owner) {
-                result[counter] = i;
+            if (pendingReceive[i] == _owner && pendings[i].status == false) {
+                result[counter] = PendingReturn(i, pendingSend[i], pendings[i].amount);
                 counter++;
             }
         }
@@ -91,13 +81,26 @@ contract LunchFactory is LunchToken {
     function allowSend(uint pendingId) public payable returns(bool) {
         require(pendingSend[pendingId] == msg.sender, "wrong sender");
         require(balanceOf(msg.sender) >= pendings[pendingId].amount, "not enough token");
-        approve(pendingRecieve[pendingId], pendings[pendingId].amount);
+        approve(pendingReceive[pendingId], pendings[pendingId].amount);
+        changePendingAllowed(pendingId);
+        ownerPendingSendCount[msg.sender] -= 1;
         return true;
     }
 
     function collect(uint pendingId) public payable returns(bool) {
-        require(pendingRecieve[pendingId] == msg.sender, "wrong receiver");
+        require(pendingReceive[pendingId] == msg.sender, "wrong receiver");
+        require(pendings[pendingId].status == false,"already paid bill");
         transferFrom(pendingSend[pendingId], msg.sender, pendings[pendingId].amount);
+        changePendingStatus(pendingId);
+        ownerPendingReceiveCount[msg.sender] -= 1;
         return true;
+    }
+
+    function changePendingAllowed(uint pendingId) internal {
+        pendings[pendingId].allowed = !pendings[pendingId].allowed;
+    }
+
+    function changePendingStatus(uint pendingId) internal {
+        pendings[pendingId].status = !pendings[pendingId].status;
     }
 }
