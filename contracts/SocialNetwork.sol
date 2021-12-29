@@ -37,15 +37,6 @@ contract SocialNetwork is LunchFactory {
         }
     }
 
-
-    function createLunchEventAmongAllFriends(uint256 totalAmount, string memory date,address _owner) public{
-        address[] memory accounts = new address[](friendsMap[_owner].length);
-        for(uint i=0;i<friendsMap[_owner].length;i++){
-            accounts[i]=friendsMap[_owner][i].personalAddress;
-        }
-        createLunchEvent(totalAmount,date,accounts);
-    }
-
     function createLunchEventAmongSelectedFriends(uint64 totalAmount, string memory date, address[] memory accounts) public{
         createLunchEvent(totalAmount,date,accounts);
     }
